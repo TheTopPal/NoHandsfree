@@ -201,7 +201,10 @@ func cmdConfig() {
 			fmt.Fprintln(os.Stderr, "Usage: nohandsfree config add <address>")
 			os.Exit(1)
 		}
-		addr := normalizeAddress(os.Args[3])
+		addr, err := configKey(os.Args[3])
+		if err != nil {
+			fatal("invalid address %q: %v", os.Args[3], err)
+		}
 		cfg.Devices[addr] = config.DeviceConfig{AutoDisableHFP: true}
 		if err := config.Save(cfgPath, cfg); err != nil {
 			fatal("save config: %v", err)
@@ -213,7 +216,10 @@ func cmdConfig() {
 			fmt.Fprintln(os.Stderr, "Usage: nohandsfree config remove <address>")
 			os.Exit(1)
 		}
-		addr := normalizeAddress(os.Args[3])
+		addr, err := configKey(os.Args[3])
+		if err != nil {
+			fatal("invalid address %q: %v", os.Args[3], err)
+		}
 		delete(cfg.Devices, addr)
 		if err := config.Save(cfgPath, cfg); err != nil {
 			fatal("save config: %v", err)
@@ -264,15 +270,15 @@ func parseAddress(s string) (uint64, error) {
 	return strconv.ParseUint(s, 16, 64)
 }
 
-// normalizeAddress converts address to colon-separated uppercase format.
-func normalizeAddress(s string) string {
-	s = strings.ReplaceAll(s, ":", "")
-	s = strings.ReplaceAll(s, "-", "")
-	s = strings.ToUpper(s)
-	if len(s) == 12 {
-		return s[0:2] + ":" + s[2:4] + ":" + s[4:6] + ":" + s[6:8] + ":" + s[8:10] + ":" + s[10:12]
+// configKey validates an address and returns it in the exact form the monitor
+// compares against, so a typo is rejected here instead of silently sitting in
+// the config as a device that never matches.
+func configKey(s string) (string, error) {
+	addr, err := parseAddress(s)
+	if err != nil {
+		return "", err
 	}
-	return s
+	return bluetooth.FormatAddress(addr), nil
 }
 
 const (

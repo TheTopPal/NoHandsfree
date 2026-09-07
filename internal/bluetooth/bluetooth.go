@@ -16,13 +16,20 @@ type Device struct {
 	HFPEnabled bool
 }
 
-// AddressString returns the BT address as a colon-separated hex string.
-func (d Device) AddressString() string {
+// FormatAddress renders a 48-bit Bluetooth address as colon-separated
+// uppercase hex (AA:BB:CC:DD:EE:FF). Config keys and the monitor's lookups
+// both go through it so the two always agree on the format.
+func FormatAddress(address uint64) string {
 	b := make([]byte, 6)
 	for i := range b {
-		b[i] = byte(d.Address >> (8 * i)) //nolint:gosec // intentional truncation to extract individual bytes
+		b[i] = byte(address >> (8 * i)) //nolint:gosec // intentional truncation to extract individual bytes
 	}
 	return fmt.Sprintf("%02X:%02X:%02X:%02X:%02X:%02X", b[5], b[4], b[3], b[2], b[1], b[0])
+}
+
+// AddressString returns the BT address as a colon-separated hex string.
+func (d Device) AddressString() string {
+	return FormatAddress(d.Address)
 }
 
 // ListPairedDevices enumerates all paired (remembered) Bluetooth devices
