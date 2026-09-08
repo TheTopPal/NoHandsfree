@@ -23,8 +23,8 @@ make build       # build binary to bin/
 make test        # run tests
 make lint        # run golangci-lint
 make clean       # remove bin/
-make install     # build + add to Windows startup
-make uninstall   # remove from Windows startup
+make install     # build + register elevated auto-start
+make uninstall   # remove auto-start
 ```
 
 Or directly (cmd / PowerShell):
@@ -61,10 +61,27 @@ nohandsfree config show
 # Start monitor (polls every N sec)
 nohandsfree watch
 
-# Add/remove from Windows startup
+# Register/remove elevated auto-start at logon
 nohandsfree install
 nohandsfree uninstall
 ```
+
+## Auto-start
+
+`install` registers a Task Scheduler entry named `NoHandsfree` that runs
+`nohandsfree watch` at logon with the highest available privileges:
+
+```
+schtasks /Create /TN NoHandsfree /TR "<exe>" watch /SC ONLOGON /RL HIGHEST /F
+```
+
+The elevated run level is the point. `watch` calls `BluetoothSetServiceState`,
+which needs administrator rights, and Windows starts `Run` key entries
+unelevated - so a `Run` entry would exit immediately at every logon. Both
+`install` and `uninstall` must themselves run elevated, and both clear the old
+`Run` value if an earlier build left one behind.
+
+The task shows up in Task Scheduler under Task Scheduler Library.
 
 ## Configuration
 

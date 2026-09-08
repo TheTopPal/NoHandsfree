@@ -9,11 +9,11 @@ import (
 	"strings"
 
 	"golang.org/x/sys/windows"
-	"golang.org/x/sys/windows/registry"
 
 	"github.com/TopPal/NoHandsfree/internal/bluetooth"
 	"github.com/TopPal/NoHandsfree/internal/config"
 	"github.com/TopPal/NoHandsfree/internal/monitor"
+	"github.com/TopPal/NoHandsfree/internal/startup"
 )
 
 func main() {
@@ -70,8 +70,8 @@ Commands:
   config remove <address>    Remove device from auto-disable watch list
   config interval <seconds>  Set polling interval (default: 5)
   config show                Show current configuration
-  install                    Add 'watch' to Windows startup
-  uninstall                  Remove from Windows startup
+  install                    Run 'watch' elevated at logon (scheduled task)
+  uninstall                  Remove the auto-start task
   help                       Show this help
 
 Address format: AA:BB:CC:DD:EE:FF or AABBCCDDEEFF
@@ -281,41 +281,27 @@ func configKey(s string) (string, error) {
 	return bluetooth.FormatAddress(addr), nil
 }
 
-const (
-	registryPath = `Software\Microsoft\Windows\CurrentVersion\Run`
-	registryName = "NoHandsfree"
-)
-
 func cmdInstall() {
 	exe, err := os.Executable()
 	if err != nil {
 		fatal("get executable path: %v", err)
 	}
-
-	key, _, err := registry.CreateKey(registry.CURRENT_USER, registryPath, registry.SET_VALUE)
-	if err != nil {
-		fatal("open registry: %v", err)
+	if err := startup.Install(exe); err != nil {
+		fatal("install auto-start: %v", err)
 	}
-	defer func() { _ = key.Close() }()
-
-	value := `"` + exe + `" watch`
-	if err := key.SetStringValue(registryName, value); err != nil {
-		fatal("set registry value: %v", err)
-	}
-	fmt.Printf("Installed to startup: %s\n", value)
+	fmt.Printf("Installed: scheduled task %q runs %q at logon, elevated.\n", startup.TaskName, exe+" watch")
 }
 
 func cmdUninstall() {
-	key, err := registry.OpenKey(registry.CURRENT_USER, registryPath, registry.SET_VALUE)
+	removed, err := startup.Uninstall()
 	if err != nil {
-		fatal("open registry: %v", err)
+		fatal("remove auto-start: %v", err)
 	}
-	defer func() { _ = key.Close() }()
-
-	if err := key.DeleteValue(registryName); err != nil {
-		fatal("delete registry value: %v", err)
+	if !removed {
+		fmt.Println("Auto-start was not installed; nothing to remove.")
+		return
 	}
-	fmt.Println("Removed from startup.")
+	fmt.Printf("Removed scheduled task %q.\n", startup.TaskName)
 }
 
 func requireElevated() {
