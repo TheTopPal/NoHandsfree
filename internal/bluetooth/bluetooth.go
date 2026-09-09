@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"errors"
 	"fmt"
 	"unsafe"
 
@@ -137,6 +138,12 @@ func findDevice(radios []windows.Handle, address uint64) (*bluetoothDeviceInfo, 
 func enumRadios() ([]windows.Handle, error) {
 	findHandle, firstRadio, err := bluetoothFindFirstRadio()
 	if err != nil {
+		// No radio at all, or the adapter is switched off. That is an empty
+		// result, not a failure: reporting it as an error made 'list' abort
+		// and made the monitor log an error on every poll.
+		if errors.Is(err, windows.ERROR_NO_MORE_ITEMS) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
@@ -163,6 +170,10 @@ func enumDevices(radioHandle windows.Handle) ([]bluetoothDeviceInfo, error) {
 
 	findHandle, first, err := bluetoothFindFirstDevice(&params)
 	if err != nil {
+		// Radio is present but nothing is paired to it.
+		if errors.Is(err, windows.ERROR_NO_MORE_ITEMS) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
