@@ -90,8 +90,11 @@ func cmdList() {
 		return
 	}
 
-	fmt.Printf("%-30s %-18s %-10s %-5s\n", "NAME", "ADDRESS", "CONNECTED", "HFP")
-	fmt.Println(strings.Repeat("-", 67))
+	// Derive the rule from the header so the two cannot drift apart.
+	const rowFormat = "%-30s %-18s %-10s %-5s"
+	header := fmt.Sprintf(rowFormat, "NAME", "ADDRESS", "CONNECTED", "HFP")
+	fmt.Println(header)
+	fmt.Println(strings.Repeat("-", len(header)))
 	for _, d := range devices {
 		conn := "no"
 		if d.Connected {
@@ -101,7 +104,7 @@ func cmdList() {
 		if d.HFPEnabled {
 			hfp = "ON"
 		}
-		fmt.Printf("%-30s %-18s %-10s %-5s\n", d.Name, d.AddressString(), conn, hfp)
+		fmt.Printf(rowFormat+"\n", d.Name, d.AddressString(), conn, hfp)
 	}
 }
 
